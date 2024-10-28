@@ -1,0 +1,45 @@
+import socket
+import struct
+
+IP_HEADER_FORMAT = "!BBHHHBBH4s4s"
+ICMP_HEADER_FORMAT = "!BBH"
+
+    def parse_ip_header(data):
+    iph = struct.unpack(IP_HEADER_FORMAT, data[:20])
+    version_ihl = iph[0]
+    version = version_ihl >> 4
+    ihl = version_ihl & 0xF
+    ip_header_length = ihl * 4
+    ttl = iph[5]
+    protocol = iph[6]
+    src_ip = socket.inet_ntoa(iph[8])
+    dest_ip = socket.inet_ntoa(iph[9])
+    return version, ip_header_length, ttl, protocol, src_ip, dest_ip
+
+def parse_icmp_header(data):
+    icmph = struct.unpack(ICMP_HEADER_FORMAT, data[:4])
+    icmp_type = icmph[0]
+    code = icmph[1]
+    checksum = icmph[2]
+    return icmp_type, code, checksum
+
+def packet_sniffer():
+    # Create a raw socket to capture ICMP packets
+    sniffer_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+
+    while True:
+        raw_data, addr = sniffer_socket.recvfrom(65535)
+        
+        version, ip_header_length, ttl, protocol, src_ip, dest_ip = parse_ip_header(raw_data[:20])
+        
+        icmp_start = ip_header_length
+        icmp_type, code, checksum = parse_icmp_header(raw_data[icmp_start:icmp_start + 4])
+        
+        print(f"Source IP: {src_ip} | Destination IP: {dest_ip}")
+        print(f"ICMP Type: {icmp_type} | Code: {code} | Checksum: {checksum}")
+        print("=" * 50)
+
+try:
+    packet_sniffer()
+except KeyboardInterrupt:
+    print("\nPacket sniffer stopped.")
